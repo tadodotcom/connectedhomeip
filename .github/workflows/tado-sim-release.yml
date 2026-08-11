@@ -1,0 +1,103 @@
+name: tado sim release
+
+# Builds the simulated Matter devices the tado CI/CD harness runs against, and
+# publishes them as release assets so the harness fetches a pinned binary instead of
+# depending on a local connectedhomeip checkout.
+#
+# The apps are built with the -thread-rcp modifier, which drives a real nRF52840 RCP
+# over spinel with no otbr. That modifier comes from PR project-chip#73242; until it
+# lands upstream this repository's tado/sim branch carries it.
+
+on:
+  push:
+    tags:
+      - "sim-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to create the release under, e.g. sim-v1.4.2.0-3610+tado.1"
+        required: true
+
+jobs:
+  build:
+    name: build and publish sim binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    container:
+      # Matches integrations/docker/images/base/chip-build/version in this tree, so the
+      # toolchain is the one upstream CI uses rather than whatever the runner ships.
+      image: ghcr.io/project-chip/chip-build:208
+      options: --user root
+
+    steps:
+      - name: Trust the workspace
+        # The container runs as root while the checkout is owned by the runner user,
+        # so git refuses to operate on it without this.
+        run: git config --global --add safe.directory '*'
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout submodules
+        run: scripts/checkout_submodules.py --shallow --platform linux
+
+      - name: Bootstrap
+        run: bash scripts/bootstrap.sh
+
+      - name: Build the sims
+        run: |
+          source scripts/activate.sh
+          ./scripts/build/build_examples.py \
+            --target linux-x64-light-thread-rcp \
+            --target linux-x64-contact-sensor-thread-rcp \
+            build
+
+      - name: Stage artefacts
+        id: stage
+        run: |
+          set -euo pipefail
+          mkdir -p artefacts
+          cp out/linux-x64-light-thread-rcp/chip-lighting-app artefacts/
+          cp out/linux-x64-contact-sensor-thread-rcp/contact-sensor-app artefacts/
+          # Unstripped these are ~150 MB each, almost all debug symbols; stripping is
+          # what makes them reasonable release assets.
+          strip artefacts/chip-lighting-app artefacts/contact-sensor-app
+          cd artefacts
+          sha256sum chip-lighting-app contact-sensor-app > SHA256SUMS
+          cat > manifest.json <<EOF
+          {
+            "tag": "${{ github.event.inputs.tag || github.ref_name }}",
+            "fork_sha": "${GITHUB_SHA}",
+            "upstream_describe": "$(cd "${GITHUB_WORKSPACE}" && git describe --tags --always)",
+            "targets": [
+              "linux-x64-light-thread-rcp",
+              "linux-x64-contact-sensor-thread-rcp"
+            ],
+            "chip_build_image": "ghcr.io/project-chip/chip-build:208",
+            "glibc": "$(ldd --version | head -1 | grep -oE '[0-9]+\.[0-9]+$')",
+            "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+          ls -lh
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: ${{ github.event.inputs.tag || github.ref_name }}
+          body: |
+            Simulated Matter devices for the tado CI/CD harness, built with the
+            `-thread-rcp` modifier (real RCP over spinel, no otbr).
+
+            Verify before use: `sha256sum -c SHA256SUMS`
+
+            The harness consumes these via `tests/cicd/sim_firmware/sim.lock.json`
+            in the SmartThermostat repository.
+          files: |
+            artefacts/chip-lighting-app
+            artefacts/contact-sensor-app
+            artefacts/SHA256SUMS
+            artefacts/manifest.json
