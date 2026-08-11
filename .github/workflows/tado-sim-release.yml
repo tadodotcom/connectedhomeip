@@ -48,6 +48,8 @@ jobs:
         run: bash scripts/bootstrap.sh
 
       - name: Build the sims
+        # The container's default shell is dash, which has no `source`.
+        shell: bash
         run: |
           source scripts/activate.sh
           ./scripts/build/build_examples.py \
@@ -57,6 +59,7 @@ jobs:
 
       - name: Stage artefacts
         id: stage
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p artefacts
