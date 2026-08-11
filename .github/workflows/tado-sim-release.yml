@@ -74,7 +74,7 @@ jobs:
           {
             "tag": "${{ github.event.inputs.tag || github.ref_name }}",
             "fork_sha": "${GITHUB_SHA}",
-            "upstream_describe": "$(cd "${GITHUB_WORKSPACE}" && git describe --tags --always)",
+            "upstream_describe": "$(cd "${GITHUB_WORKSPACE}" && git describe --tags --always --exclude 'sim-v*')",
             "targets": [
               "linux-x64-light-thread-rcp",
               "linux-x64-contact-sensor-thread-rcp"
