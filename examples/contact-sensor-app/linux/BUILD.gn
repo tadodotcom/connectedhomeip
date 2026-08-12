@@ -29,12 +29,15 @@ config("includes") {
 
 executable("contact-sensor-app") {
   sources = [
+    "ContactSensorCommandDelegate.cpp",
+    "ContactSensorCommandDelegate.h",
     "include/CHIPProjectAppConfig.h",
     "main.cpp",
   ]
 
   deps = [
     "${chip_root}/examples/contact-sensor-app/contact-sensor-common",
+    "${chip_root}/third_party/jsoncpp",
     "${chip_root}/examples/platform/linux:app-main",
     "${chip_root}/src/lib",
   ]
