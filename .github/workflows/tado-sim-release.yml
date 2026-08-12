@@ -53,7 +53,6 @@ jobs:
         run: |
           source scripts/activate.sh
           ./scripts/build/build_examples.py \
-            --target linux-x64-light-thread-rcp \
             --target linux-x64-contact-sensor-thread-rcp \
             build
 
@@ -63,22 +62,18 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artefacts
-          cp out/linux-x64-light-thread-rcp/chip-lighting-app artefacts/
           cp out/linux-x64-contact-sensor-thread-rcp/contact-sensor-app artefacts/
           # Unstripped these are ~150 MB each, almost all debug symbols; stripping is
           # what makes them reasonable release assets.
-          strip artefacts/chip-lighting-app artefacts/contact-sensor-app
+          strip artefacts/contact-sensor-app
           cd artefacts
-          sha256sum chip-lighting-app contact-sensor-app > SHA256SUMS
+          sha256sum contact-sensor-app > SHA256SUMS
           cat > manifest.json <<EOF
           {
             "tag": "${{ github.event.inputs.tag || github.ref_name }}",
             "fork_sha": "${GITHUB_SHA}",
             "upstream_describe": "$(cd "${GITHUB_WORKSPACE}" && git describe --tags --always --exclude 'sim-v*')",
-            "targets": [
-              "linux-x64-light-thread-rcp",
-              "linux-x64-contact-sensor-thread-rcp"
-            ],
+            "targets": ["linux-x64-contact-sensor-thread-rcp"],
             "chip_build_image": "ghcr.io/project-chip/chip-build:208",
             "glibc": "$(ldd --version | head -1 | grep -oE '[0-9]+\.[0-9]+$')",
             "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -100,7 +95,6 @@ jobs:
             The harness consumes these via `tests/cicd/sim_firmware/sim.lock.json`
             in the SmartThermostat repository.
           files: |
-            artefacts/chip-lighting-app
             artefacts/contact-sensor-app
             artefacts/SHA256SUMS
             artefacts/manifest.json
