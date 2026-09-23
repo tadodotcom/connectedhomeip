@@ -75,6 +75,7 @@ enum
     kDeviceOption_WiFi,
     kDeviceOption_Thread,
     kDeviceOption_ThreadNodeId,
+    kDeviceOption_ThreadDeviceType,
 #if CHIP_DEVICE_CONFIG_THREAD_OT_POSIX_MAINLOOP
     kDeviceOption_ThreadRadioUrl,
     kDeviceOption_ThreadDataPath,
@@ -183,6 +184,7 @@ OptionDef sDeviceOptionDefs[] = {
 #if CHIP_ENABLE_OPENTHREAD
 #if CHIP_SYSTEM_CONFIG_USE_OPENTHREAD_ENDPOINT
     { "thread-node-id", kArgumentRequired, kDeviceOption_ThreadNodeId },
+    { "thread-device-type", kArgumentRequired, kDeviceOption_ThreadDeviceType },
 #if CHIP_DEVICE_CONFIG_THREAD_OT_POSIX_MAINLOOP
     { "thread-radio-url", kArgumentRequired, kDeviceOption_ThreadRadioUrl },
     { "thread-data-path", kArgumentRequired, kDeviceOption_ThreadDataPath },
@@ -304,6 +306,14 @@ const char * sDeviceOptionHelp =
     "\n"
     "  --thread-node-id <node id>\n"
     "       Enable Thread Simulation with the specified node id.\n"
+    "  --thread-device-type <router|fed|med|sed>\n"
+    "       Thread role to run as. med/sed make the node a Minimal Thread Device that\n"
+    "       attaches as a child and never becomes a router.\n"
+#if CHIP_DEVICE_CONFIG_THREAD_OT_POSIX_MAINLOOP
+    "       Defaults to med.\n"
+#else
+    "       Defaults to router.\n"
+#endif
 #if CHIP_DEVICE_CONFIG_THREAD_OT_POSIX_MAINLOOP
     "  --thread-radio-url <url>\n"
     "       Drive a real 802.15.4 RCP over spinel via OpenThread's POSIX platform\n"
@@ -596,6 +606,32 @@ bool HandleOption(const char * aProgram, OptionSet * aOptions, int aIdentifier, 
             retval = false;
         }
         break;
+    case kDeviceOption_ThreadDeviceType: {
+        using ThreadDeviceType = chip::DeviceLayer::ConnectivityManager::ThreadDeviceType;
+        auto & deviceType      = LinuxDeviceOptions::GetInstance().mThreadDeviceType;
+        if (strcmp(aValue, "router") == 0)
+        {
+            deviceType = ThreadDeviceType::kThreadDeviceType_Router;
+        }
+        else if (strcmp(aValue, "fed") == 0)
+        {
+            deviceType = ThreadDeviceType::kThreadDeviceType_FullEndDevice;
+        }
+        else if (strcmp(aValue, "med") == 0)
+        {
+            deviceType = ThreadDeviceType::kThreadDeviceType_MinimalEndDevice;
+        }
+        else if (strcmp(aValue, "sed") == 0)
+        {
+            deviceType = ThreadDeviceType::kThreadDeviceType_SleepyEndDevice;
+        }
+        else
+        {
+            PrintArgError("%s: invalid value specified for Thread device type: %s\n", aProgram, aValue);
+            retval = false;
+        }
+        break;
+    }
 #if CHIP_DEVICE_CONFIG_THREAD_OT_POSIX_MAINLOOP
     case kDeviceOption_ThreadRadioUrl:
         LinuxDeviceOptions::GetInstance().mThreadRadioUrl = aValue;

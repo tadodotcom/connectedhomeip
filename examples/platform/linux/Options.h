@@ -72,6 +72,10 @@ struct LinuxDeviceOptions
     // multiple RCP device instances on one host don't share one settings store;
     // null keeps the platform default. Points into argv, so must outlive otSysInit().
     const char * mThreadDataPath = nullptr;
+    // Thread role to request at startup (e.g. MinimalEndDevice to run as an MTD on
+    // the FTD stack). Unset means MinimalEndDevice on the POSIX RCP platform and
+    // OpenThread's default, a router-eligible FTD, in the simulation.
+    std::optional<chip::DeviceLayer::ConnectivityManager::ThreadDeviceType> mThreadDeviceType;
 #else
     bool mThread = false;
 #endif

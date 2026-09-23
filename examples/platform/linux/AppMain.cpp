@@ -781,6 +781,23 @@ int ChipLinuxAppInit(int argc, char * const argv[], OptionSet * customOptions,
         otSysInit(MATTER_ARRAY_SIZE(args), args);
 #endif
         SuccessOrExit(err = DeviceLayer::ThreadStackMgrImpl().InitThreadStack());
+        {
+            // Applied every boot: OpenThread restores the link mode from its settings, but
+            // the role is a launch-time choice, so the command line is the source of truth.
+            auto deviceType = LinuxDeviceOptions::GetInstance().mThreadDeviceType;
+#if CHIP_DEVICE_CONFIG_THREAD_OT_POSIX_MAINLOOP
+            // A real-RCP device joins an existing network, so default to an MTD. The
+            // simulation keeps the FTD default: an MTD alone could never form a network.
+            if (!deviceType.has_value())
+            {
+                deviceType = DeviceLayer::ConnectivityManager::ThreadDeviceType::kThreadDeviceType_MinimalEndDevice;
+            }
+#endif
+            if (deviceType.has_value())
+            {
+                SuccessOrExit(err = DeviceLayer::ConnectivityMgr().SetThreadDeviceType(*deviceType));
+            }
+        }
         SuccessOrExit(err = DeviceLayer::ThreadStackMgrImpl().StartThreadTask());
         ChipLogProgress(NotSpecified, "Thread initialized.");
     }
